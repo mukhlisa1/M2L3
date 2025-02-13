@@ -1,29 +1,36 @@
 
 import telebot
 from config import token
-# Задание 7 - испортируй команду defaultdict
+from collections import defaultdict
 from logic import quiz_questions
 
 user_responses = {} 
-# Задание 8 - создай словарь points для сохранения количества очков пользователя
+points = defaultdict(int)
 
 bot = telebot.TeleBot(token)
 
 def send_question(chat_id):
-    bot.send_message(chat_id, quiz_questions[user_responses[chat_id]].text, reply_markup=quiz_questions[user_responses[chat_id]].gen_markup())
+    question = quiz_questions[user_responses[chat_id]]
+    
+    with open(question.image_question, 'rb') as photo:
+        bot.send_photo(chat_id, photo, caption=question.text, reply_markup=question.gen_markup())
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
+    chat_id = call.message.chat.id
 
     if call.data == "correct":
         bot.answer_callback_query(call.id, "Answer is correct")
-        # Задание 9 - добавь очки пользователю за правильный ответ
+        points[call.message.chat.id] += 1
     elif call.data == "wrong":
         bot.answer_callback_query(call.id,  "Answer is wrong")
+
+    bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.message_id, reply_markup=None)
+    
     user_responses[call.message.chat.id]+=1
 
     if user_responses[call.message.chat.id]>=len(quiz_questions):
-        bot.send_message(call.message.chat.id, "The end")
+        bot.send_message(call.message.chat.id,  f"The end, your points: {points[call.message.chat.id]}")
     else:
         send_question(call.message.chat.id)
 
